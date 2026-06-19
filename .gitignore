@@ -1,0 +1,30 @@
+# ===== 参考仓库（第三方，仅本地阅读，禁止上传）=====
+# 克隆自 deretame 的三个仓库，仅用于开发参考
+/reference/
+
+# ===== 依赖 =====
+/node_modules/
+
+# ===== 构建产物（manifest 由 pnpm build 自动生成）=====
+/dist/
+
+# ===== 日志 =====
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# ===== 系统文件 =====
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# ===== IDE / 编辑器 =====
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ===== 环境变量 =====
+.env
+.env.local
+.env.*.local

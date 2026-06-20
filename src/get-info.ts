@@ -10,7 +10,7 @@ export function buildPluginInfo(): InfoContract {
       name: "Enigma_Soul",
       describe: "包子漫画去水印增强插件",
     },
-    describe: "包子漫画抓取 + wm1 版权横幅裁切 + 空白错误页处理（纯 TS，无 WASM）",
+    describe: "包子漫画增强：去水印、繁简转换、翻页预读",
     version: "0.1.0",
     home: "https://github.com/Enigma-Soul/breeze-baozimh-plus",
     updateUrl:

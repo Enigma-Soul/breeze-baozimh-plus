@@ -5,8 +5,10 @@
 # ===== 依赖 =====
 /node_modules/
 
-# ===== 构建产物（manifest 由 pnpm build 自动生成）=====
+# ===== 构建产物（manifest / dist 都由 pnpm build 自动生成）=====
 /dist/
+/manifest.json
+/release-notes.md
 
 # ===== 日志 =====
 *.log
@@ -28,3 +30,6 @@ ehthumbs.db
 .env
 .env.local
 .env.*.local
+
+# ===== 本地开发/测试脚本（含机器相关绝对路径，不进仓库）=====
+/scripts/

@@ -1,0 +1,82 @@
+name: build-release
+
+# PR 到 main：只构建检查（不发版）
+# push 到 main（即 PR 合并）：构建 + 自动发版（tag = manifest version，重复则跳过）
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: write # 创建 release / tag 需要
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 需要 tag 历史以判重
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        # typecheck → 同步版本(get-info.ts→package.json) → 生成 manifest → rspack → brotli
+        run: pnpm build
+
+      - name: Read version
+        id: version
+        run: |
+          v=$(node -p 'require("./package.json").version')
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Check tag exists
+        if: github.event_name == 'push'
+        id: skip
+        run: |
+          if git tag -l "v${{ steps.version.outputs.version }}" | grep -q .; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::tag v${{ steps.version.outputs.version }} 已存在 —— 记得先在 src/get-info.ts 改 version 再合并，本次跳过发版"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract changelog section
+        if: github.event_name == 'push' && steps.skip.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        # 从 CHANGELOG.md 提取本版本段落 → release-notes.md；缺失则空文件（回退自动生成）
+        run: node build/extract-changelog.cjs
+
+      - name: Create release
+        if: github.event_name == 'push' && steps.skip.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if [ -s release-notes.md ]; then
+            gh release create "v$VERSION" --title "v$VERSION" --notes-file release-notes.md \
+              dist/*.bundle.cjs dist/*.bundle.cjs.br manifest.json
+          else
+            gh release create "v$VERSION" --title "v$VERSION" --generate-notes \
+              dist/*.bundle.cjs dist/*.bundle.cjs.br manifest.json
+          fi
+          echo "Released v$VERSION"

@@ -1,0 +1,4 @@
+# pnpm 11+ 工作区配置。放行 esbuild 构建脚本（tsx / rspack 依赖），
+# 否则 ERR_PNPM_IGNORED_BUILDS 会阻断 pnpm 脚本运行
+allowBuilds:
+  esbuild: true

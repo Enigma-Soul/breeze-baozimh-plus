@@ -57,11 +57,6 @@ export function clearCache(): void {
   inflight.clear();
 }
 
-/** 是否已缓存（供日志区分命中/未命中，不触发下载） */
-export function hasCache(url: string): boolean {
-  return cache.has(url);
-}
-
 function touch(url: string, bytes: Uint8Array): void {
   cache.delete(url);
   cache.set(url, bytes); // 移到末尾 = 最近使用

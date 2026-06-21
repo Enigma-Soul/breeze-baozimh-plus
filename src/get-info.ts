@@ -11,7 +11,7 @@ export function buildPluginInfo(): InfoContract {
       describe: "包子漫画去水印增强插件",
     },
     describe: "包子漫画增强：去水印、繁简转换、翻页预读",
-    version: "0.1.0",
+    version: "0.2.0",
     home: "https://github.com/Enigma-Soul/breeze-baozimh-plus",
     updateUrl:
       "https://api.github.com/repos/Enigma-Soul/breeze-baozimh-plus/releases/latest",

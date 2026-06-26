@@ -11,9 +11,6 @@ importers:
       cheerio:
         specifier: ^1.2.0
         version: 1.2.0
-      jpeg-js:
-        specifier: ^0.4.4
-        version: 0.4.4
     devDependencies:
       '@rspack/cli':
         specifier: ^2.0.5
@@ -368,9 +365,6 @@ packages:
   isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
 
-  jpeg-js@0.4.4:
-    resolution: {integrity: sha512-WZzeDOEtTOBK4Mdsar0IqEU5sMr3vSV2RqkAIzUEV2BHnUfKGyswWFPFwK5EeDo93K3FohSHbLAjj0s1Wzd+dg==}
-
   nth-check@2.0.1:
     resolution: {integrity: sha512-it1vE95zF6dTT9lBsYbxvqh0Soy4SPowchj0UBGj/V6cTPnXXtQOPUbhZ6CmGzAD/rW22LQK6E96pcdJXk4A4w==}
 
@@ -720,8 +714,6 @@ snapshots:
       safer-buffer: 2.1.2
 
   isexe@2.0.0: {}
-
-  jpeg-js@0.4.4: {}
 
   nth-check@2.0.1:
     dependencies:

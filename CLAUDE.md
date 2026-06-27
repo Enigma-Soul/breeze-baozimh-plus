@@ -60,3 +60,7 @@ pnpm typecheck    # tsc --noEmit（调试期验证用这个，别跑 build——
 - **push 到 develop**（feat PR 合并）：build → fast-forward 推 `develop → main`（`git push origin HEAD:main`，用 `GITHUB_TOKEN`）→ tag 不存在则 `gh release create`（挂 bundle + manifest + .br）
 
 > main 由 CI 推送，不走 PR。`GITHUB_TOKEN` 推送不递归触发 workflow，故推 main 与发版在同一 job 内完成。分支保护：develop 可严格保护（强制 PR + 禁强推）；main 因 `github-actions[bot]` 无法进入 restrict/bypass 列表，GITHUB_TOKEN 方案下只能弱保护（靠「develop 受控 + main=develop ff」保证来源），GitHub 层硬约束「只 CI 推 main」需改用 App token。**先合并首个 PR 让 CI 跑通 ff 推 main，再加保护规则**，否则 bot 推不动会卡死。
+>
+> **⚠️ 硬约束：main 只能由 CI 的 ff 推送更新，严禁任何人工 commit / 强推 / 绕过 CI 的推送。** main 一旦出现 develop 之外的 commit（如 merge commit），就不再是 develop 后代，CI 的 `git push HEAD:main` 会因 non-fast-forward 失败、发版链卡死（历史教训：早期 PR→main 的 merge commit 曾致此，靠 force 对齐才修复）。所有内容一律走 `feat/* → develop`。
+>
+> **分支保护配置（手动在 GitHub UI）**：develop — Require PR + status check 选 `build` + 禁强推（protected 默认生效）；main — **不要**开 Require PR / Restrict pushes（否则 GITHUB_TOKEN 推不动），实质靠「仓库仅你 + 仅 CI 推 main + main=develop ff」约定保护。develop 保护随时可加；main 保持弱保护。要 GitHub 层硬约束「只 CI 推 main」，改用 Repository Ruleset 的 bypass list 挂 GitHub App + CI 换 App token。

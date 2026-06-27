@@ -1,9 +1,8 @@
 // 包子漫画 Plus —— 插件入口
 //
 // 在 deretame/Breeze-plugin-baozimh 抓取链基础上：
-//   1. fetchImageBytes 下载图片后去水印（wm1 横幅裁切 + 空白/极小图处理，纯 TS）
-//   2. 阅读时预取缓存后续页面（cap 15，跨章节并发补齐；QJS 无 Worker）
-//   3. 繁体→简体（宿主 bridge opencc，tw2s）：标题/章节名/作者/简介等
+//   1. 阅读时预取缓存后续页面（cap 15，跨章节并发补齐；QJS 无 Worker）
+//   2. 繁体→简体（宿主 bridge opencc，tw2s）：标题/章节名/作者/简介等
 
 import {
   fetchBytes,
@@ -17,13 +16,11 @@ import { isSimplified, setSimplified, t2s } from "./convert";
 import { PLUGIN_ID } from "./common";
 import { buildPluginInfo } from "./get-info";
 import {
-  clearCache,
   configureFetcher,
   getOrFetch,
   prefetchAhead,
   setChapterContext,
 } from "./prefetch";
-import { processImageBytes } from "./watermark";
 import type {
   CapabilitiesBundleContract,
   ChapterContentContract,
@@ -39,9 +36,6 @@ import type {
   SettingsBundleContract,
 } from "../types/type";
 
-// 去水印开关（默认关：QJS 里 jpeg 解码 ~5s/页，关掉保证流畅；需要时手动开）
-let watermarkEnabled = false;
-
 // 设置字段变更回调的入参（字段 key + 新值）
 type SettingsChange = { key?: string; value?: unknown };
 
@@ -49,24 +43,18 @@ async function getInfo(): Promise<InfoContract> {
   return buildPluginInfo();
 }
 
-/** 下载并去水印：供当前页（直接 await）与预取层（并发）共用 */
-async function downloadAndProcess(
+/** 下载图片：供当前页（直接 await）与预取层（并发）共用 */
+function downloadBytes(
   url: string,
 ): Promise<Uint8Array<ArrayBufferLike>> {
-  const raw = await fetchBytes(url, {
+  return fetchBytes(url, {
     headers: { "x-rquickjs-host-offload-binary-v1": "1" },
     signal: AbortSignal.timeout(30000),
   });
-  if (!watermarkEnabled) return raw;
-  try {
-    return processImageBytes(raw).bytes;
-  } catch {
-    return raw; // 处理异常 → 原样返回，不中断阅读
-  }
 }
 
-// 把下载器注入预取层（预取与正式读取共用同一套下载+处理）
-configureFetcher(downloadAndProcess);
+// 把下载器注入预取层（预取与正式读取共用同一套下载）
+configureFetcher(downloadBytes);
 
 // ---------------------------------------------------------------------------
 // 繁体→简体（应用到响应里的文本字段）
@@ -209,7 +197,7 @@ async function getChapter(payload: ChapterPayload): Promise<ChapterContentContra
 }
 
 /**
- * 下载图片并去水印；优先命中预取缓存，未命中则下载处理并触发后续预取。
+ * 下载图片；优先命中预取缓存，未命中则下载并触发后续预取。
  * 缓存/预取层异常时降级为直接下载，绝不中断阅读。
  */
 async function fetchImageBytes({
@@ -222,7 +210,7 @@ async function fetchImageBytes({
     prefetchAhead(targetUrl); // 非阻塞：并发预取后续页（跨章节）
     return bytes;
   } catch {
-    const bytes = await downloadAndProcess(targetUrl); // 兜底
+    const bytes = await downloadBytes(targetUrl); // 兜底
     prefetchAhead(targetUrl);
     return bytes;
   }
@@ -231,16 +219,6 @@ async function fetchImageBytes({
 // ---------------------------------------------------------------------------
 // 设置
 // ---------------------------------------------------------------------------
-
-async function onWatermarkChanged(
-  payload: SettingsChange,
-): Promise<Record<string, unknown>> {
-  if (payload.key === "watermark.enabled") {
-    watermarkEnabled = Boolean(payload.value);
-    clearCache(); // 清空缓存使新设置立即生效
-  }
-  return {};
-}
 
 async function onSimplifiedChanged(
   payload: SettingsChange,
@@ -260,12 +238,6 @@ async function getSettingsBundle(): Promise<SettingsBundleContract> {
           title: "阅读",
           fields: [
             {
-              key: "watermark.enabled",
-              kind: "switch",
-              label: "去除横幅水印",
-              fnPath: "onWatermarkChanged",
-            },
-            {
               key: "convert.simplified",
               kind: "switch",
               label: "繁体转简体（标题/章节名等）",
@@ -278,7 +250,6 @@ async function getSettingsBundle(): Promise<SettingsBundleContract> {
     data: {
       canShowUserInfo: false,
       values: {
-        "watermark.enabled": watermarkEnabled,
         "convert.simplified": isSimplified(),
       },
     },
@@ -302,6 +273,5 @@ export default {
   fetchImageBytes,
   getSettingsBundle,
   getCapabilitiesBundle,
-  onWatermarkChanged,
   onSimplifiedChanged,
 };

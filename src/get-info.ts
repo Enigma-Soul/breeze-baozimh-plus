@@ -11,10 +11,10 @@ export function buildPluginInfo(): InfoContract {
       describe: "包子漫画增强插件",
     },
     describe: "包子漫画增强：繁简转换、翻页预读",
-    version: "0.3.0",
-    home: "https://github.com/Enigma-Soul/breeze-baozimh-plus",
+    version: "0.4.0",
+    home: "https://github.com/Enigma-Soul/Breeze-plugin-baozimh-plus",
     updateUrl:
-      "https://api.github.com/repos/Enigma-Soul/breeze-baozimh-plus/releases/latest",
+      "https://api.github.com/repos/Enigma-Soul/Breeze-plugin-baozimh-plus/releases/latest",
     npmName: "breeze-plugin-baozimh-plus",
     function: [],
   };

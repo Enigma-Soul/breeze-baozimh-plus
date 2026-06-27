@@ -30,7 +30,7 @@ pnpm typecheck    # tsc --noEmit（调试期验证用这个，别跑 build——
 
 **数据流**：`getReadSnapshot/getChapter` 返回页面列表 → `fetchImageBytes(url)` 下载图片。预取层在后台并发下载后续页面。
 
-**版本管理**：`src/get-info.ts` 的 `version` 字段是版本号唯一来源；`pnpm build` 的 `generate-version.ts` 会同步到 `package.json`。`manifest.json` 由构建自动生成（已 gitignore）。
+**版本管理**：`src/get-info.ts` 的 `version` 字段是版本号唯一来源；`pnpm build` 的 `generate-version.ts` 会同步到 `package.json`。`manifest.json` 由构建自动生成，**已纳入版本控制**（Breeze-plugin-list 收录脚本读取默认分支根目录 `HEAD:manifest.json`）；改 `src/get-info.ts` 后必须本地 `pnpm build` 同步 `manifest.json` 一并提交，CI 会校验漂移。
 
 ## QuickJS-NG 沙箱硬约束（踩过的坑）
 
@@ -46,6 +46,8 @@ pnpm typecheck    # tsc --noEmit（调试期验证用这个，别跑 build——
 
 ## PR 规则
 
+**分支模型**：`feat/* → develop（强制 PR、禁强推）→ main（仅 CI ff 推送，禁人工直推）`。所有更新新建 `feat/*` 分支提 PR 到 develop；develop 合并后 CI 自动 fast-forward 推送到 main 并发版。禁止直接推 develop / main。
+
 **一切 PR 都必须改版本号与 CHANGELOG：**
 
 1. `src/get-info.ts` 的 `version` 字段 bump（x.y.z 语义化）
@@ -54,5 +56,7 @@ pnpm typecheck    # tsc --noEmit（调试期验证用这个，别跑 build——
 
 ## CI（.github/workflows/build-release.yml）
 
-- **PR 到 main**：只跑 `pnpm build` 检查（不发版）
-- **push 到 main**（PR 合并）：build → 读版本号 → tag 不存在则 `gh release create`（挂 bundle + manifest + .br）
+- **PR 到 develop**：`pnpm build` + manifest 漂移校验（get-info.ts 与 manifest.json 不同步则 fail）
+- **push 到 develop**（feat PR 合并）：build → fast-forward 推 `develop → main`（`git push origin HEAD:main`，用 `GITHUB_TOKEN`）→ tag 不存在则 `gh release create`（挂 bundle + manifest + .br）
+
+> main 由 CI 推送，不走 PR。`GITHUB_TOKEN` 推送不递归触发 workflow，故推 main 与发版在同一 job 内完成。分支保护：develop 可严格保护（强制 PR + 禁强推）；main 因 `github-actions[bot]` 无法进入 restrict/bypass 列表，GITHUB_TOKEN 方案下只能弱保护（靠「develop 受控 + main=develop ff」保证来源），GitHub 层硬约束「只 CI 推 main」需改用 App token。**先合并首个 PR 让 CI 跑通 ff 推 main，再加保护规则**，否则 bot 推不动会卡死。

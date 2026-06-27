@@ -1,28 +1,29 @@
 name: build-release
 
-# PR 到 main：只构建检查（不发版）
-# push 到 main（即 PR 合并）：构建 + 自动发版（tag = manifest version，重复则跳过）
+# 分支模型：feat/* →（PR）→ develop →（CI ff 推送）→ main
+# PR 到 develop：build + manifest 漂移校验（不发版、不推 main）
+# push 到 develop（即 feat PR 合并）：build → ff 推 develop→main → 发版（tag = version，重复则跳过）
 on:
   pull_request:
-    branches: [main]
+    branches: [develop]
   push:
-    branches: [main]
+    branches: [develop]
 
 permissions:
-  contents: write # 创建 release / tag 需要
+  contents: write # 推 main + 创建 release / tag 需要
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-and-release:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 需要 tag 历史以判重
+          fetch-depth: 0 # ff 推 develop→main + tag 判重需要完整历史
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -42,7 +43,19 @@ jobs:
         # typecheck → 同步版本(get-info.ts→package.json) → 生成 manifest → rspack → brotli
         run: pnpm build
 
+      # ===== 仅 PR：校验 manifest.json 与源同步（防改 get-info.ts 忘同步 manifest）=====
+      - name: Check manifest drift
+        if: github.event_name == 'pull_request'
+        run: |
+          if ! git diff --quiet -- manifest.json; then
+            echo "::error::manifest.json 与 src/get-info.ts 不同步——请本地 pnpm build 后一并提交"
+            git diff -- manifest.json
+            exit 1
+          fi
+
+      # ===== 仅 push（feat→develop 合并后）：推 main + 发版 =====
       - name: Read version
+        if: github.event_name == 'push'
         id: version
         run: |
           v=$(node -p 'require("./package.json").version')
@@ -54,10 +67,15 @@ jobs:
         run: |
           if git tag -l "v${{ steps.version.outputs.version }}" | grep -q .; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "::warning::tag v${{ steps.version.outputs.version }} 已存在 —— 记得先在 src/get-info.ts 改 version 再合并，本次跳过发版"
+            echo "::warning::tag v${{ steps.version.outputs.version }} 已存在 —— 跳过发版（仍会推 main）"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
+
+      # GITHUB_TOKEN 推送不递归触发 workflow；HEAD = 触发 push 的 develop commit，fast-forward 到 main
+      - name: Promote develop → main
+        if: github.event_name == 'push'
+        run: git push origin HEAD:main
 
       - name: Extract changelog section
         if: github.event_name == 'push' && steps.skip.outputs.skip != 'true'

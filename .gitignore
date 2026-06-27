@@ -5,9 +5,8 @@
 # ===== 依赖 =====
 /node_modules/
 
-# ===== 构建产物（manifest / dist 都由 pnpm build 自动生成）=====
+# ===== 构建产物（dist 等由 pnpm build 自动生成；manifest.json 已纳入版本控制，见 CLAUDE.md）=====
 /dist/
-/manifest.json
 /release-notes.md
 
 # ===== 日志 =====

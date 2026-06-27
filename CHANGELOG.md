@@ -3,6 +3,15 @@
 > 每个版本一个 `# 版本号` 段落，下设 `### Feat(<范围>):` / `### Fix:` 子段。
 > CI 发版时自动提取对应版本段落作为 GitHub Release 正文。
 
+# 0.4.0
+
+### Feat(ci):
+- 分支流转工作流：`feat/* → develop（强制 PR、禁强推）→ main（仅 CI ff 推送）`。CI 触发改为 PR/push 到 develop：PR 阶段 build + manifest 漂移校验；push（合并后）build → `git push origin HEAD:main` fast-forward 推送 → 发版
+- manifest.json 纳入版本控制（移出 .gitignore）：使 Breeze-plugin-list 收录脚本可读取默认分支根目录 `HEAD:manifest.json`，打通收录链路
+
+### Chore:
+- 仓库改名 `breeze-baozimh-plus → Breeze-plugin-baozimh-plus`（符合收录命名规范 `Breeze-plugin-*`），同步 home/updateUrl
+
 # 0.3.0
 
 ### Fix:

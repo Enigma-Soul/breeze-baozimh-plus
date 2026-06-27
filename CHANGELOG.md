@@ -3,6 +3,11 @@
 > 每个版本一个 `# 版本号` 段落，下设 `### Feat(<范围>):` / `### Fix:` 子段。
 > CI 发版时自动提取对应版本段落作为 GitHub Release 正文。
 
+# 0.4.1
+
+### Docs:
+- CLAUDE.md 固化分支流转硬约束：main 只能由 CI ff 推送，严禁手动改 main（否则制造分叉，`git push HEAD:main` non-fast-forward 失败、发版卡死）；补充分支保护配置指引（develop status check 选 `build`；main 不开 Require PR/Restrict）
+
 # 0.4.0
 
 ### Feat(ci):

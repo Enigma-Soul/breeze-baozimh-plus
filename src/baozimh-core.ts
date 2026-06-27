@@ -491,7 +491,7 @@ export async function getPages(chapterPath: string): Promise<string[]> {
   return pages;
 }
 
-function createComicListItem(
+export function createComicListItem(
   id: string,
   title: string,
   cover: string | null,

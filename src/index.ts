@@ -13,6 +13,18 @@ import {
   searchComic as coreSearchComic,
 } from "./baozimh-core";
 import { isSimplified, setSimplified, t2s } from "./convert";
+import {
+  komgaGetChapter,
+  komgaGetComicDetail,
+  komgaGetReadSnapshot,
+  komgaSearch,
+} from "./komga-client";
+import {
+  getProxyBaseUrl,
+  getSourceMode,
+  setProxyBaseUrl,
+  setSourceMode,
+} from "./source-config";
 import { PLUGIN_ID } from "./common";
 import { buildPluginInfo } from "./get-info";
 import {
@@ -141,10 +153,13 @@ function applyChapterContext(
         };
       }
     | undefined,
+  disableCrossChapter = false,
 ): void {
   const pages = res?.data?.chapter?.pages;
   const urls = Array.isArray(pages) ? pages.map((p) => p.url) : [];
-  setChapterContext(urls, pickNextChapterId(res ?? {}), fetchChapterImageUrls);
+  // Komga 模式禁跨章预取（proxy 自身有滑动窗口预读）；章内预取仍基于 urls 生效
+  const nextId = disableCrossChapter ? null : pickNextChapterId(res ?? {});
+  setChapterContext(urls, nextId, fetchChapterImageUrls);
 }
 
 /** 章节内页面按 URL 去重：保留最早出现，删除后续重复 */
@@ -168,32 +183,43 @@ function dedupeChapterPages(
 // API（包装 core：去重 + 预取上下文 + 繁简转换）
 // ---------------------------------------------------------------------------
 
+function isProxyMode(): boolean {
+  return getSourceMode() === "proxy";
+}
+
 async function searchComic(
   payload: SearchComicPayload,
 ): Promise<SearchResultContract> {
+  // proxy 已做繁简，Komga 模式跳过 convert
+  if (isProxyMode()) return komgaSearch(payload);
   return convertSearch(await coreSearchComic(payload));
 }
 
 async function getComicDetail(payload: {
   comicId?: string;
 }): Promise<ComicDetailContract> {
+  if (isProxyMode()) return komgaGetComicDetail(payload);
   return convertDetail(await coreGetComicDetail(payload));
 }
 
 async function getReadSnapshot(
   payload: ReadSnapshotPayload,
 ): Promise<ReadSnapshotContract> {
-  const res = await coreGetReadSnapshot(payload);
+  const proxy = isProxyMode();
+  const res = proxy
+    ? await komgaGetReadSnapshot(payload)
+    : await coreGetReadSnapshot(payload);
   dedupeChapterPages(res);
-  applyChapterContext(res);
-  return convertChapterLike(res);
+  applyChapterContext(res, proxy);
+  return proxy ? res : convertChapterLike(res);
 }
 
 async function getChapter(payload: ChapterPayload): Promise<ChapterContentContract> {
-  const res = await coreGetChapter(payload);
+  const proxy = isProxyMode();
+  const res = proxy ? await komgaGetChapter(payload) : await coreGetChapter(payload);
   dedupeChapterPages(res);
-  applyChapterContext(res);
-  return convertChapterLike(res);
+  applyChapterContext(res, proxy);
+  return proxy ? res : convertChapterLike(res);
 }
 
 /**
@@ -227,6 +253,45 @@ async function onSimplifiedChanged(
   return {};
 }
 
+async function onSourceModeChanged(
+  payload: SettingsChange,
+): Promise<Record<string, unknown>> {
+  if (payload.key === "source.mode") {
+    setSourceMode(payload.value === "proxy" ? "proxy" : "direct");
+  }
+  return {};
+}
+
+async function onProxyBaseUrlChanged(
+  payload: SettingsChange,
+): Promise<Record<string, unknown>> {
+  if (payload.key === "proxy.baseUrl") setProxyBaseUrl(String(payload.value ?? ""));
+  return {};
+}
+
+/** 测试代理连接：调 proxy /healthz；失败抛错（最大化可见），成功返回状态摘要 */
+async function onTestProxyConnection(): Promise<Record<string, unknown>> {
+  const base = getProxyBaseUrl();
+  if (!base) throw new Error("请先填写代理服务器地址");
+  const res = await fetch(`${base}/healthz`, {
+    signal: AbortSignal.timeout(5000),
+  }).catch((e: unknown) => {
+    throw new Error(`无法连接代理 ${base}：${String((e as Error)?.message ?? e)}`);
+  });
+  if (!res.ok) throw new Error(`代理响应异常 ${res.status}：${base}`);
+  let info: { status?: string; lama_ready?: boolean; t2s_enabled?: boolean } = {};
+  try {
+    info = (await res.json()) as typeof info;
+  } catch {
+    /* 非 JSON 忽略 */
+  }
+  if (info.status !== "ok") throw new Error(`代理状态异常：${base}`);
+  return {
+    ok: true,
+    message: `连接正常（去水印：${info.lama_ready ? "就绪" : "降级"}，繁简：${info.t2s_enabled ? "开" : "关"}）`,
+  };
+}
+
 async function getSettingsBundle(): Promise<SettingsBundleContract> {
   return {
     source: PLUGIN_ID,
@@ -234,6 +299,27 @@ async function getSettingsBundle(): Promise<SettingsBundleContract> {
       version: "1.0.0",
       type: "settings",
       sections: [
+        {
+          title: "数据来源",
+          fields: [
+            {
+              key: "source.mode",
+              kind: "select",
+              label: "数据来源",
+              fnPath: "onSourceModeChanged",
+              options: [
+                { label: "直接抓取（包子漫画官网）", value: "direct" },
+                { label: "包子漫画代理（Komga 协议）", value: "proxy" },
+              ],
+            },
+            {
+              key: "proxy.baseUrl",
+              kind: "text",
+              label: "代理服务器地址（http://IP:8787，IPv6 用 http://[::1]:8787）",
+              fnPath: "onProxyBaseUrlChanged",
+            },
+          ],
+        },
         {
           title: "阅读",
           fields: [
@@ -250,6 +336,8 @@ async function getSettingsBundle(): Promise<SettingsBundleContract> {
     data: {
       canShowUserInfo: false,
       values: {
+        "source.mode": getSourceMode(),
+        "proxy.baseUrl": getProxyBaseUrl(),
         "convert.simplified": isSimplified(),
       },
     },
@@ -259,7 +347,17 @@ async function getSettingsBundle(): Promise<SettingsBundleContract> {
 async function getCapabilitiesBundle(): Promise<CapabilitiesBundleContract> {
   return {
     source: PLUGIN_ID,
-    scheme: { version: "1.0.0", type: "capabilities", actions: [] },
+    scheme: {
+      version: "1.0.0",
+      type: "capabilities",
+      actions: [
+        {
+          key: "testProxy",
+          title: "测试代理连接",
+          fnPath: "onTestProxyConnection",
+        },
+      ],
+    },
     data: {},
   };
 }
@@ -274,4 +372,7 @@ export default {
   getSettingsBundle,
   getCapabilitiesBundle,
   onSimplifiedChanged,
+  onSourceModeChanged,
+  onProxyBaseUrlChanged,
+  onTestProxyConnection,
 };

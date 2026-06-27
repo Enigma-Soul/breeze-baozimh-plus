@@ -3,6 +3,12 @@
 > 每个版本一个 `# 版本号` 段落，下设 `### Feat(<范围>):` / `### Fix:` 子段。
 > CI 发版时自动提取对应版本段落作为 GitHub Release 正文。
 
+# 0.3.0
+
+### Fix:
+- 移除去水印功能（wm1 横幅裁切）：QuickJS-NG 沙箱里 jpeg 解码 ~5s/页，收益不抵代价。删除 `watermark.ts` / `wm1-template.ts`、`jpeg-js` 依赖与「去除横幅水印」设置项
+- 清理无用文件：删除 `types/runtime-api.ts`、`types/runtime-api.typecheck.ts`（上游模板遗留，全项目未引用）
+
 # 0.2.0
 
 ### Feat(去水印):

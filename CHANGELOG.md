@@ -8,6 +8,9 @@
 ### Docs:
 - CLAUDE.md 固化分支流转硬约束：main 只能由 CI ff 推送，严禁手动改 main（否则制造分叉，`git push HEAD:main` non-fast-forward 失败、发版卡死）；补充分支保护配置指引（develop status check 选 `build`；main 不开 Require PR/Restrict）
 
+### Chore(ci):
+- 升级 actions 到 Node 24 runtime：actions/checkout@v7、setup-node@v6、pnpm/action-setup@v6（消除 Node.js 20 deprecation warning）
+
 # 0.4.0
 
 ### Feat(ci):

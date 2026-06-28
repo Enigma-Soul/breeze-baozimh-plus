@@ -46,6 +46,7 @@ import type {
   SearchComicPayload,
   SearchResultContract,
   SettingsBundleContract,
+  SettingsField,
 } from "../types/type";
 
 // 设置字段变更回调的入参（字段 key + 新值）
@@ -293,33 +294,35 @@ async function onTestProxyConnection(): Promise<Record<string, unknown>> {
 }
 
 async function getSettingsBundle(): Promise<SettingsBundleContract> {
+  const sourceFields: SettingsField[] = [
+    {
+      key: "source.mode",
+      kind: "select",
+      label: "数据来源",
+      fnPath: "onSourceModeChanged",
+      options: [
+        { label: "官网", value: "direct" },
+        { label: "代理", value: "proxy" },
+      ],
+    },
+  ];
+  // 选「代理」才展开代理地址字段；标签里给出代理服务器源码链接
+  if (getSourceMode() === "proxy") {
+    sourceFields.push({
+      key: "proxy.baseUrl",
+      kind: "text",
+      label:
+        "代理服务器地址（https://github.com/Enigma-Soul/baozimh-proxy 是代理服务器源码）",
+      fnPath: "onProxyBaseUrlChanged",
+    });
+  }
   return {
     source: PLUGIN_ID,
     scheme: {
       version: "1.0.0",
       type: "settings",
       sections: [
-        {
-          title: "数据来源",
-          fields: [
-            {
-              key: "source.mode",
-              kind: "select",
-              label: "数据来源",
-              fnPath: "onSourceModeChanged",
-              options: [
-                { label: "直接抓取（包子漫画官网）", value: "direct" },
-                { label: "包子漫画代理（Komga 协议）", value: "proxy" },
-              ],
-            },
-            {
-              key: "proxy.baseUrl",
-              kind: "text",
-              label: "代理服务器地址（http://IP:8787，IPv6 用 http://[::1]:8787）",
-              fnPath: "onProxyBaseUrlChanged",
-            },
-          ],
-        },
+        { title: "数据来源", fields: sourceFields },
         {
           title: "阅读",
           fields: [

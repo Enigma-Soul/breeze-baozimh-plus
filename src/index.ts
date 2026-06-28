@@ -309,14 +309,9 @@ async function getSettingsBundle(): Promise<SettingsBundleContract> {
               fnPath: "onSourceModeChanged",
               options: [
                 { label: "包子漫画官网", value: "direct" },
-                { label: "包子漫画代理", value: "proxy" },
+                { label: "Enigma-Soul/baozimh-proxy", value: "proxy" },
               ],
             },
-          ],
-        },
-        {
-          title: "代理服务器源码：https://github.com/Enigma-Soul/baozimh-proxy",
-          fields: [
             {
               key: "proxy.baseUrl",
               kind: "text",

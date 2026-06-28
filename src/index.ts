@@ -305,18 +305,13 @@ async function getSettingsBundle(): Promise<SettingsBundleContract> {
             {
               key: "source.mode",
               kind: "select",
-              label: "数据来源",
+              label:
+                "数据来源（包子漫画代理源码：https://github.com/Enigma-Soul/baozimh-proxy）",
               fnPath: "onSourceModeChanged",
               options: [
                 { label: "包子漫画官网", value: "direct" },
                 { label: "包子漫画代理", value: "proxy" },
               ],
-            },
-            {
-              key: "proxy.repoUrl",
-              kind: "text",
-              label: "代理服务器源码（这是代理服务器的源码）",
-              persist: false,
             },
             {
               key: "proxy.baseUrl",
@@ -343,7 +338,6 @@ async function getSettingsBundle(): Promise<SettingsBundleContract> {
       canShowUserInfo: false,
       values: {
         "source.mode": getSourceMode(),
-        "proxy.repoUrl": "https://github.com/Enigma-Soul/baozimh-proxy",
         "proxy.baseUrl": getProxyBaseUrl(),
         "convert.simplified": isSimplified(),
       },

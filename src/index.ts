@@ -124,13 +124,13 @@ function isProxyMode(): boolean {
   return getSourceMode() === "proxy";
 }
 
-async function searchComic(
+function searchComic(
   payload: SearchComicPayload,
 ): Promise<SearchResultContract> {
   return isProxyMode() ? komgaSearch(payload) : coreSearchComic(payload);
 }
 
-async function getComicDetail(payload: {
+function getComicDetail(payload: {
   comicId?: string;
 }): Promise<ComicDetailContract> {
   return isProxyMode()

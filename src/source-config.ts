@@ -1,5 +1,5 @@
 // 数据来源配置：直连 baozimh.com，或经 Komga 兼容协议访问自建 baozimh-proxy。
-// 仿 convert.ts：模块级状态 + getter/setter（设置回调写入，各处读取）。
+// 模块级状态 + getter/setter（设置回调写入，各处读取）。
 
 export type SourceMode = "direct" | "proxy";
 

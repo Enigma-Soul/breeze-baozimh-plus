@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 ## 项目概述
 
-Breeze 漫画阅读器的第三方插件「包子漫画 Plus」。Breeze 插件运行在 **QuickJS-NG 沙箱**（非 Node/浏览器），打包成单文件 `.cjs` bundle 加载。基于 deretame/Breeze-plugin-baozimh 抓取链，增加预取缓存、繁简转换等功能。
+Breeze 漫画阅读器的第三方插件「包子漫画 Plus」。Breeze 插件运行在 **QuickJS-NG 沙箱**（非 Node/浏览器），打包成单文件 `.cjs` bundle 加载。基于 deretame/Breeze-plugin-baozimh 抓取链，增加预取缓存等功能。
 
 ## 常用命令
 
@@ -25,8 +25,7 @@ pnpm typecheck    # tsc --noEmit（调试期验证用这个，别跑 build——
 |------|------|
 | `baozimh-core.ts` | 抓取链（搜索/详情/章节/阅读），HTML 解析用 cheerio；从 deretame 样例移植 |
 | `prefetch.ts` | 图片预取缓存（LRU cap 15，跨章节，并发异步去重） |
-| `convert.ts` | 繁→简（宿主 bridge opencc，tw2s） |
-| `index.ts` | 编排层：包装 core 函数，注入去重 + 预取上下文 + 繁简转换 |
+| `index.ts` | 编排层：包装 core 函数，注入去重 + 预取上下文 |
 
 **数据流**：`getReadSnapshot/getChapter` 返回页面列表 → `fetchImageBytes(url)` 下载图片。预取层在后台并发下载后续页面。
 

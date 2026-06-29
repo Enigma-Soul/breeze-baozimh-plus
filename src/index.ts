@@ -1,8 +1,7 @@
 // 包子漫画 Plus —— 插件入口
 //
 // 在 deretame/Breeze-plugin-baozimh 抓取链基础上：
-//   1. 阅读时预取缓存后续页面（cap 15，跨章节并发补齐；QJS 无 Worker）
-//   2. 繁体→简体（宿主 bridge opencc，tw2s）：标题/章节名/作者/简介等
+//   阅读时预取缓存后续页面（cap 15，跨章节并发补齐；QJS 无 Worker）
 
 import {
   fetchBytes,
@@ -12,7 +11,6 @@ import {
   getReadSnapshot as coreGetReadSnapshot,
   searchComic as coreSearchComic,
 } from "./baozimh-core";
-import { isSimplified, setSimplified, t2s } from "./convert";
 import {
   komgaGetChapter,
   komgaGetComicDetail,
@@ -69,67 +67,6 @@ function downloadBytes(
 configureFetcher(downloadBytes);
 
 // ---------------------------------------------------------------------------
-// 繁体→简体（应用到响应里的文本字段）
-// ---------------------------------------------------------------------------
-
-async function convertSearch(
-  res: SearchResultContract,
-): Promise<SearchResultContract> {
-  if (!isSimplified()) return res;
-  await Promise.all(
-    (res.items ?? []).map(async (it) => {
-      it.title = await t2s(it.title);
-      if (it.subtitle) it.subtitle = await t2s(it.subtitle);
-    }),
-  );
-  return res;
-}
-
-async function convertDetail(
-  res: ComicDetailContract,
-): Promise<ComicDetailContract> {
-  if (!isSimplified()) return res;
-  const ci = res.data.normal.comicInfo;
-  ci.title = await t2s(ci.title);
-  if (ci.creator?.name) ci.creator.name = await t2s(ci.creator.name);
-  if (ci.description) ci.description = await t2s(ci.description);
-  await Promise.all(
-    (ci.titleMeta ?? []).map(async (m) => (m.name = await t2s(m.name))),
-  );
-  await Promise.all(
-    (ci.metadata ?? []).map(async (md) => {
-      md.name = await t2s(md.name);
-      await Promise.all(
-        (md.value ?? []).map(async (v) => (v.name = await t2s(v.name))),
-      );
-    }),
-  );
-  await Promise.all(
-    (res.data.normal.eps ?? []).map(async (ep) => (ep.name = await t2s(ep.name))),
-  );
-  return res;
-}
-
-type ChapterLike = {
-  data: {
-    comic?: { title?: string };
-    chapter?: { name?: string };
-    chapters?: Array<{ name?: string }>;
-  };
-};
-
-async function convertChapterLike<T extends ChapterLike>(res: T): Promise<T> {
-  if (!isSimplified()) return res;
-  const d = res.data;
-  if (d.comic?.title) d.comic.title = await t2s(d.comic.title);
-  if (d.chapter?.name) d.chapter.name = await t2s(d.chapter.name);
-  await Promise.all(
-    (d.chapters ?? []).map(async (c) => (c.name = await t2s(c.name))),
-  );
-  return res;
-}
-
-// ---------------------------------------------------------------------------
 // 章节上下文 + 去重（供预取层跨章预取）
 // ---------------------------------------------------------------------------
 
@@ -180,26 +117,25 @@ function dedupeChapterPages(
 }
 
 // ---------------------------------------------------------------------------
-// API（包装 core：去重 + 预取上下文 + 繁简转换）
+// API（包装 core：去重 + 预取上下文；按数据来源分发直连 / 代理）
 // ---------------------------------------------------------------------------
 
 function isProxyMode(): boolean {
   return getSourceMode() === "proxy";
 }
 
-async function searchComic(
+function searchComic(
   payload: SearchComicPayload,
 ): Promise<SearchResultContract> {
-  // proxy 已做繁简，Komga 模式跳过 convert
-  if (isProxyMode()) return komgaSearch(payload);
-  return convertSearch(await coreSearchComic(payload));
+  return isProxyMode() ? komgaSearch(payload) : coreSearchComic(payload);
 }
 
-async function getComicDetail(payload: {
+function getComicDetail(payload: {
   comicId?: string;
 }): Promise<ComicDetailContract> {
-  if (isProxyMode()) return komgaGetComicDetail(payload);
-  return convertDetail(await coreGetComicDetail(payload));
+  return isProxyMode()
+    ? komgaGetComicDetail(payload)
+    : coreGetComicDetail(payload);
 }
 
 async function getReadSnapshot(
@@ -211,7 +147,7 @@ async function getReadSnapshot(
     : await coreGetReadSnapshot(payload);
   dedupeChapterPages(res);
   applyChapterContext(res, proxy);
-  return proxy ? res : convertChapterLike(res);
+  return res;
 }
 
 async function getChapter(payload: ChapterPayload): Promise<ChapterContentContract> {
@@ -219,7 +155,7 @@ async function getChapter(payload: ChapterPayload): Promise<ChapterContentContra
   const res = proxy ? await komgaGetChapter(payload) : await coreGetChapter(payload);
   dedupeChapterPages(res);
   applyChapterContext(res, proxy);
-  return proxy ? res : convertChapterLike(res);
+  return res;
 }
 
 /**
@@ -245,13 +181,6 @@ async function fetchImageBytes({
 // ---------------------------------------------------------------------------
 // 设置
 // ---------------------------------------------------------------------------
-
-async function onSimplifiedChanged(
-  payload: SettingsChange,
-): Promise<Record<string, unknown>> {
-  if (payload.key === "convert.simplified") setSimplified(Boolean(payload.value));
-  return {};
-}
 
 async function onSourceModeChanged(
   payload: SettingsChange,
@@ -320,17 +249,6 @@ async function getSettingsBundle(): Promise<SettingsBundleContract> {
             },
           ],
         },
-        {
-          title: "阅读",
-          fields: [
-            {
-              key: "convert.simplified",
-              kind: "switch",
-              label: "繁体转简体（标题/章节名等）",
-              fnPath: "onSimplifiedChanged",
-            },
-          ],
-        },
       ],
     },
     data: {
@@ -338,7 +256,6 @@ async function getSettingsBundle(): Promise<SettingsBundleContract> {
       values: {
         "source.mode": getSourceMode(),
         "proxy.baseUrl": getProxyBaseUrl(),
-        "convert.simplified": isSimplified(),
       },
     },
   };
@@ -371,7 +288,6 @@ export default {
   fetchImageBytes,
   getSettingsBundle,
   getCapabilitiesBundle,
-  onSimplifiedChanged,
   onSourceModeChanged,
   onProxyBaseUrlChanged,
   onTestProxyConnection,

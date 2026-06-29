@@ -3,12 +3,11 @@
 [![release](https://img.shields.io/github/v/release/Enigma-Soul/Breeze-plugin-baozimh-plus?label=release)](https://github.com/Enigma-Soul/Breeze-plugin-baozimh-plus/releases)
 [![Breeze](https://img.shields.io/badge/for-Breeze-blue)](https://github.com/deretame/Breeze)
 
-[Breeze](https://github.com/deretame/Breeze) 漫画阅读器的第三方插件。基于 [deretame/Breeze-plugin-baozimh](https://github.com/deretame/Breeze-plugin-baozimh) 的抓取链,增加**翻页预读缓存**、**繁简转换**,以及经 **Komga 兼容协议**接入自建 [baozimh-proxy](https://github.com/Enigma-Soul/baozimh-proxy) 的代理模式。
+[Breeze](https://github.com/deretame/Breeze) 漫画阅读器的第三方插件。基于 [deretame/Breeze-plugin-baozimh](https://github.com/deretame/Breeze-plugin-baozimh) 的抓取链,增加**翻页预读缓存**,以及经 **Komga 兼容协议**接入自建 [baozimh-proxy](https://github.com/Enigma-Soul/baozimh-proxy) 的代理模式。
 
 ## 功能
 
 - **翻页预读** — 阅读时后台预取后续页面,翻页直接命中(LRU 缓存,跨章节并发补齐;QuickJS-NG 无 Worker,并发靠异步 I/O)
-- **繁简转换** — 繁体→简体(宿主 OpenCC `tw2s`),作用于标题 / 章节名 / 作者 / 简介
 - **包子漫画代理** — 经 Komga 兼容协议访问自建 baozimh-proxy,叠加去水印 / 繁简 / 空白页修复 / 异步预读
 - **章节去重** — 章节内重复页按 URL 去重(保留最早出现)
 
@@ -26,7 +25,7 @@
 | 空白页修复 | CDN 错误页重试 + 1px 过渡色兜底,保持页码连续 |
 | 异步加速 | 并发回源 + 后台预读下一章 + LRU 缓存 |
 
-代理模式下插件不再做繁简与跨章预取(proxy 已覆盖),仅做章内预取缓存加速翻页。
+代理模式下插件不再做跨章预取(proxy 自带预读覆盖),仅做章内预取缓存加速翻页。
 
 ## 安装
 
@@ -46,7 +45,6 @@ https://github.com/Enigma-Soul/Breeze-plugin-baozimh-plus/releases/latest/downlo
 - **数据来源** — `包子漫画官网`(直连抓取)/ `Enigma-Soul/baozimh-proxy`(代理)
 - **代理服务器地址** — 代理模式用,如 `http://192.168.1.100:8787`;IPv6 用 `http://[::1]:8787`
 - **测试代理连接** — 点击调用 proxy `/healthz` 验证可达(失败会抛错提示)
-- **繁体转简体** — 开关(仅直连模式生效;代理模式由 proxy 处理)
 
 ## 开发
 
@@ -72,8 +70,7 @@ pnpm typecheck  # 仅类型检查
 | `komga-client.ts` | Komga 协议客户端(代理模式) |
 | `source-config.ts` | 数据源模式 + 代理 baseUrl 存储 |
 | `prefetch.ts` | 图片预取缓存(LRU cap 15,跨章并发去重) |
-| `convert.ts` | 繁→简(宿主 bridge `opencc.convert`) |
-| `index.ts` | 编排层:分发、去重、预取上下文、繁简 |
+| `index.ts` | 编排层:分发、去重、预取上下文 |
 
 > [!IMPORTANT]
 > 插件运行在 **QuickJS-NG 沙箱**(非 Node / 浏览器),打包成单文件 `.cjs` bundle。硬约束:无 WebAssembly、无 `**` 运算符(用 `Math.pow`)、无 Worker(并发只能异步 I/O),必须纯 TS。
